@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Comercio Electrónico</title>
+    <script src="WSClient.js"></script>
+    <script>
+        const URL = "/Servicio/rest/ws";
+        let fotoArticulo = null;
+
+        function get(id) {
+            return document.getElementById(id);
+        }
+
+        function muestraPantalla(id) {
+            document.querySelectorAll('.pantalla').forEach(pantalla => pantalla.style.display = 'none');
+            get(id).style.display = 'block';
+        }
+
+        function readImageFile(files, imgElement) {
+            const file = files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                imgElement.src = reader.result;
+                fotoArticulo = reader.result.split(',')[1]; // Base64 sin encabezado
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function altaArticulo() {
+            const cliente = new WSClient(URL);
+            const articulo = {
+                nombre: get("alta_nombre").value,
+                descripcion: get("alta_descripcion").value,
+                precio: parseFloat(get("alta_precio").value),
+                cantidad: parseInt(get("alta_cantidad").value, 10),
+                foto: fotoArticulo
+            };
+
+            cliente.postJson("alta_articulo", { articulo }, function (code, result) {
+                if (code === 200) {
+                    alert("Artículo registrado correctamente");
+                } else {
+                    alert("Error: " + JSON.stringify(result));
+                }
+            });
+        }
+
+        function buscarArticulos() {
+            const cliente = new WSClient(URL);
+            const palabraClave = get("busqueda_palabra").value;
+
+            cliente.postJson("buscar_articulos", { palabraClave }, function (code, result) {
+                if (code === 200) {
+                    const lista = get("lista_articulos");
+                    lista.innerHTML = "";
+                    result.forEach(articulo => {
+                        const item = document.createElement("div");
+                        item.innerHTML = `
+                            <img src="data:image/jpeg;base64,${articulo.foto}" alt="${articulo.nombre}" width="100">
+                            <h3>${articulo.nombre}</h3>
+                            <p>${articulo.descripcion}</p>
+                            <p>Precio: $${articulo.precio}</p>
+                            <input type="number" id="cantidad_${articulo.id_articulo}" value="1" min="1">
+                            <button onclick="comprarArticulo(${articulo.id_articulo})">Comprar</button>
+                        `;
+                        lista.appendChild(item);
+                    });
+                } else {
+                    alert("Error al buscar artículos: " + JSON.stringify(result));
+                }
+            });
+        }
+
+        function comprarArticulo(idArticulo) {
+            const cantidad = parseInt(get(`cantidad_${idArticulo}`).value, 10);
+            const cliente = new WSClient(URL);
+
+            cliente.postJson("comprar_articulo", { idArticulo, cantidad }, function (code, result) {
+                if (code === 200) {
+                    alert("Compra realizada con éxito");
+                } else {
+                    alert("Error: " + JSON.stringify(result));
+                }
+            });
+        }
+
+        function inicializar() {
+            muestraPantalla("menu");
+        }
+    </script>
+    <style>
+        .pantalla {
+            display: none;
+        }
+        #menu {
+            display: block;
+        }
+    </style>
+</head>
+<body onload="inicializar()">
+    <div id="menu" class="pantalla">
+        <h1>Sistema de Comercio Electrónico</h1>
+        <button onclick="muestraPantalla('alta_articulo')">Captura de Artículo</button>
+        <button onclick="muestraPantalla('compra_articulos')">Compra de Artículos</button>
+        <button onclick="mostrarCarrito()">Carrito de Compras</button>
+    </div>
+
+    <div id="alta_articulo" class="pantalla">
+        <h2>Captura de Artículo</h2>
+        <input type="text" id="alta_nombre" placeholder="Nombre del artículo"><br>
+        <textarea id="alta_descripcion" placeholder="Descripción"></textarea><br>
+        <input type="number" id="alta_precio" placeholder="Precio"><br>
+        <input type="number" id="alta_cantidad" placeholder="Cantidad"><br>
+        <img id="preview_alta" width="100"><br>
+        <input type="file" onchange="readImageFile(this.files, get('preview_alta'))" accept="image/*"><br>
+        <button onclick="altaArticulo()">Guardar</button>
+        <button onclick="muestraPantalla('menu')">Regresar</button>
+    </div>
+
+    <div id="compra_articulos" class="pantalla">
+        <h2>Compra de Artículos</h2>
+        <input type="text" id="busqueda_palabra" placeholder="Buscar por nombre o descripción">
+        <button onclick="buscarArticulos()">Buscar</button>
+        <div id="lista_articulos"></div>
+        <button onclick="muestraPantalla('menu')">Regresar</button>
+    </div>
+    <div id="menu" class="pantalla">
+        <h1>Sistema de Comercio Electrónico</h1>
+        <button onclick="muestraPantalla('alta_articulo')">Captura de Artículo</button>
+        <button onclick="muestraPantalla('compra_articulos')">Compra de Artículos</button>
+        <button onclick="mostrarCarrito()">Carrito de Compras</button>
+    </div>
+    
+    <div id="carrito_compras" class="pantalla">
+        <h2>Carrito de Compras</h2>
+        <div id="lista_carrito"></div>
+        <h3 id="total_compra">Total: $0.00</h3>
+        <button onclick="vaciarCarrito()">Vaciar Carrito</button>
+        <button onclick="muestraPantalla('menu')">Regresar</button>
+    </div>
+
+    <script>
+        function mostrarCarrito() {
+            const cliente = new WSClient(URL);
+            cliente.postJson("listar_carrito", {}, function (code, result) {
+                if (code === 200) {
+                    const listaCarrito = get("lista_carrito");
+                    listaCarrito.innerHTML = "";
+                    let total = 0;
+    
+                    result.forEach(item => {
+                        const costo = item.cantidad * item.precio;
+                        total += costo;
+    
+                        const itemCarrito = document.createElement("div");
+                        itemCarrito.innerHTML = `
+                            <img src="data:image/jpeg;base64,${item.foto}" alt="${item.nombre}" width="100">
+                            <h3>${item.nombre}</h3>
+                            <p>Cantidad: ${item.cantidad}</p>
+                            <p>Precio: $${item.precio}</p>
+                            <p>Costo: $${costo}</p>
+                            <button onclick="eliminarArticuloCarrito(${item.id_articulo})">Eliminar</button>
+                        `;
+                        listaCarrito.appendChild(itemCarrito);
+                    });
+    
+                    get("total_compra").innerText = `Total: $${total.toFixed(2)}`;
+                    muestraPantalla("carrito_compras");
+                } else {
+                    alert("Error al cargar el carrito: " + JSON.stringify(result));
+                }
+            });
+        }
+    
+        function eliminarArticuloCarrito(idArticulo) {
+            const cliente = new WSClient(URL);
+            cliente.postJson("eliminar_articulo_carrito", { idArticulo }, function (code, result) {
+                if (code === 200) {
+                    alert("Artículo eliminado del carrito");
+                    mostrarCarrito();
+                } else {
+                    alert("Error: " + JSON.stringify(result));
+                }
+            });
+        }
+    
+        function vaciarCarrito() {
+            const cliente = new WSClient(URL);
+            cliente.postJson("vaciar_carrito", {}, function (code, result) {
+                if (code === 200) {
+                    alert("Carrito vaciado con éxito");
+                    mostrarCarrito();
+                } else {
+                    alert("Error: " + JSON.stringify(result));
+                }
+            });
+        }
+    </script>
+    
+</body>
+</html>
