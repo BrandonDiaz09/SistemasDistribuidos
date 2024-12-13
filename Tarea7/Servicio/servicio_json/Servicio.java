@@ -153,4 +153,121 @@ public class Servicio {
         }
         return Response.ok().build();
     }
+
+    @POST
+    @Path("listar_carrito")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response listarCarrito(String json) {
+        ArrayList<Articulo> carrito = new ArrayList<>();
+
+        try (Connection conexion = pool.getConnection()) {
+            String sql = "SELECT c.id_articulo, c.cantidad, a.nombre, a.precio, f.fotografia " +
+                        "FROM carrito_compra c " +
+                        "JOIN articulos a ON c.id_articulo = a.id_articulo " +
+                        "LEFT JOIN fotos_articulos f ON a.id_articulo = f.id_articulo";
+
+            try (PreparedStatement stmt = conexion.prepareStatement(sql);
+                ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Articulo articulo = new Articulo();
+                    articulo.id_articulo = rs.getInt("id_articulo");
+                    articulo.nombre = rs.getString("nombre");
+                    articulo.precio = rs.getDouble("precio");
+                    articulo.cantidad = rs.getInt("cantidad");
+                    articulo.foto = rs.getBytes("fotografia");
+                    carrito.add(articulo);
+                }
+            }
+        } catch (Exception e) {
+            return Response.status(400).entity(j.toJson(new Error(e.getMessage()))).build();
+        }
+        return Response.ok().entity(j.toJson(carrito)).build();
+    }
+
+    @POST
+    @Path("eliminar_articulo_carrito")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response eliminarArticuloCarrito(String json) {
+        ParamCompraArticulo p = j.fromJson(json, ParamCompraArticulo.class);
+
+        try (Connection conexion = pool.getConnection()) {
+            conexion.setAutoCommit(false);
+
+            // Obtener la cantidad del artículo en el carrito
+            String sqlCantidad = "SELECT cantidad FROM carrito_compra WHERE id_articulo = ?";
+            int cantidadCarrito = 0;
+            try (PreparedStatement stmt = conexion.prepareStatement(sqlCantidad)) {
+                stmt.setInt(1, p.id_articulo);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        cantidadCarrito = rs.getInt("cantidad");
+                    } else {
+                        return Response.status(400).entity(j.toJson(new Error("El artículo no está en el carrito"))).build();
+                    }
+                }
+            }
+
+            // Eliminar el artículo del carrito
+            String sqlEliminar = "DELETE FROM carrito_compra WHERE id_articulo = ?";
+            try (PreparedStatement stmt = conexion.prepareStatement(sqlEliminar)) {
+                stmt.setInt(1, p.id_articulo);
+                stmt.executeUpdate();
+            }
+
+            // Devolver la cantidad al stock
+            String sqlActualizarStock = "UPDATE articulos SET cantidad = cantidad + ? WHERE id_articulo = ?";
+            try (PreparedStatement stmt = conexion.prepareStatement(sqlActualizarStock)) {
+                stmt.setInt(1, cantidadCarrito);
+                stmt.setInt(2, p.id_articulo);
+                stmt.executeUpdate();
+            }
+
+            conexion.commit();
+        } catch (Exception e) {
+            return Response.status(400).entity(j.toJson(new Error(e.getMessage()))).build();
+        }
+        return Response.ok().build();
+    }
+
+    @POST
+    @Path("vaciar_carrito")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response vaciarCarrito(String json) {
+        try (Connection conexion = pool.getConnection()) {
+            conexion.setAutoCommit(false);
+
+            // Recuperar los artículos y cantidades del carrito
+            String sqlSeleccionar = "SELECT id_articulo, cantidad FROM carrito_compra";
+            try (PreparedStatement stmt = conexion.prepareStatement(sqlSeleccionar);
+                ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    int idArticulo = rs.getInt("id_articulo");
+                    int cantidad = rs.getInt("cantidad");
+
+                    // Devolver las cantidades al stock
+                    String sqlActualizarStock = "UPDATE articulos SET cantidad = cantidad + ? WHERE id_articulo = ?";
+                    try (PreparedStatement stmtStock = conexion.prepareStatement(sqlActualizarStock)) {
+                        stmtStock.setInt(1, cantidad);
+                        stmtStock.setInt(2, idArticulo);
+                        stmtStock.executeUpdate();
+                    }
+                }
+            }
+
+            // Vaciar el carrito
+            String sqlVaciar = "DELETE FROM carrito_compra";
+            try (PreparedStatement stmt = conexion.prepareStatement(sqlVaciar)) {
+                stmt.executeUpdate();
+            }
+
+            conexion.commit();
+        } catch (Exception e) {
+            return Response.status(400).entity(j.toJson(new Error(e.getMessage()))).build();
+        }
+        return Response.ok().build();
+    }
+
 }

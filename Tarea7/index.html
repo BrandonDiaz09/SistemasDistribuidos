@@ -63,6 +63,7 @@
                             <h3>${articulo.nombre}</h3>
                             <p>${articulo.descripcion}</p>
                             <p>Precio: $${articulo.precio}</p>
+                            <label for="cantidad_${articulo.id_articulo}">Cantidad:</label>
                             <input type="number" id="cantidad_${articulo.id_articulo}" value="1" min="1">
                             <button onclick="comprarArticulo(${articulo.id_articulo})">Comprar</button>
                         `;
@@ -74,11 +75,11 @@
             });
         }
 
-        function comprarArticulo(idArticulo) {
-            const cantidad = parseInt(get(`cantidad_${idArticulo}`).value, 10);
+        function comprarArticulo(id_articulo) {
+            const cantidad = parseInt(get(`cantidad_${id_articulo}`).value, 10);
             const cliente = new WSClient(URL);
 
-            cliente.postJson("comprar_articulo", { idArticulo, cantidad }, function (code, result) {
+            cliente.postJson("comprar_articulo", { id_articulo, cantidad }, function (code, result) {
                 if (code === 200) {
                     alert("Compra realizada con éxito");
                 } else {
@@ -103,43 +104,88 @@
 <body onload="inicializar()">
     <div id="menu" class="pantalla">
         <h1>Sistema de Comercio Electrónico</h1>
-        <button onclick="muestraPantalla('alta_articulo')">Captura de Artículo</button>
-        <button onclick="muestraPantalla('compra_articulos')">Compra de Artículos</button>
-        <button onclick="mostrarCarrito()">Carrito de Compras</button>
+        <button onclick="muestraPantalla('alta_articulo')" 
+            style="background-color: #e0e0e0; padding: 5px 10px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
+            Captura de Artículo
+        </button>
+        <button onclick="muestraPantalla('compra_articulos')"
+            style="background-color: #e0e0e0; padding: 5px 10px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
+            Compra de Artículos
+        </button>
     </div>
-
+    
     <div id="alta_articulo" class="pantalla">
         <h2>Captura de Artículo</h2>
+        <label for="alta_nombre">Nombre del artículo:</label><br>
         <input type="text" id="alta_nombre" placeholder="Nombre del artículo"><br>
+        <br>
+        <label for="alta_descripcion">Descripción:</label><br>
         <textarea id="alta_descripcion" placeholder="Descripción"></textarea><br>
+        <br>
+        <label for="alta_precio">Precio:</label><br>
         <input type="number" id="alta_precio" placeholder="Precio"><br>
+        <br>
+        <label for="alta_cantidad">Cantidad:</label><br>
         <input type="number" id="alta_cantidad" placeholder="Cantidad"><br>
+        <br>
+        <label for="preview_alta">Imagen del artículo:</label><br>
         <img id="preview_alta" width="100"><br>
         <input type="file" onchange="readImageFile(this.files, get('preview_alta'))" accept="image/*"><br>
-        <button onclick="altaArticulo()">Guardar</button>
-        <button onclick="muestraPantalla('menu')">Regresar</button>
+        <br>
+        <button onclick="altaArticulo()" 
+            style="background-color: #8ee076; padding: 5px 10px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
+            Guardar
+        </button>
+        <button onclick="muestraPantalla('menu')" 
+            style="background-color: #d0d0d0; padding: 5px 10px; border: 1px solid #aaa; border-radius: 3px; cursor: pointer;">
+            Regresar
+        </button>
     </div>
-
+    
+    
     <div id="compra_articulos" class="pantalla">
         <h2>Compra de Artículos</h2>
-        <input type="text" id="busqueda_palabra" placeholder="Buscar por nombre o descripción">
-        <button onclick="buscarArticulos()">Buscar</button>
+        <input type="text" id="busqueda_palabra" placeholder="Buscar por nombre o descripción" 
+            style="width: 80%; padding: 5px; font-size: 14px; border: 1px solid #ccc; border-radius: 3px;">
+        <button onclick="buscarArticulos()" 
+            style="background-color: #8ee076; padding: 5px 10px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
+            Buscar
+        </button>
         <div id="lista_articulos"></div>
-        <button onclick="muestraPantalla('menu')">Regresar</button>
+        <br>
+        <button onclick="mostrarCarrito()" 
+            style="background-color: #d7c562; padding: 5px 10px; border: 1px solid #aaa; border-radius: 3px; cursor: pointer;">
+            Carrito de Compras
+        </button>
+        <button onclick="muestraPantalla('menu')" 
+            style="padding: 5px 10px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
+            Regresar
+    </button>
     </div>
+
     <div id="menu" class="pantalla">
         <h1>Sistema de Comercio Electrónico</h1>
-        <button onclick="muestraPantalla('alta_articulo')">Captura de Artículo</button>
-        <button onclick="muestraPantalla('compra_articulos')">Compra de Artículos</button>
-        <button onclick="mostrarCarrito()">Carrito de Compras</button>
+        <button onclick="muestraPantalla('alta_articulo')"
+            style="background-color: #d0d0d0; padding: 5px 10px; border: 1px solid #aaa; border-radius: 3px; cursor: pointer;">
+            Captura de Artículo
+        </button>
+        <button onclick="muestraPantalla('compra_articulos')" style="background-color: #d0d0d0; padding: 5px 10px; border: 1px solid #aaa; border-radius: 3px; cursor: pointer;">
+            Compra de Artículos
+        </button>
     </div>
     
     <div id="carrito_compras" class="pantalla">
         <h2>Carrito de Compras</h2>
         <div id="lista_carrito"></div>
         <h3 id="total_compra">Total: $0.00</h3>
-        <button onclick="vaciarCarrito()">Vaciar Carrito</button>
-        <button onclick="muestraPantalla('menu')">Regresar</button>
+        <button onclick="vaciarCarrito()"
+            style="background-color: #cf6f6f; padding: 5px 10px; border: 1px solid #aaa; border-radius: 3px; cursor: pointer;">
+            Vaciar Carrito
+        </button>
+        <button  onclick="muestraPantalla('compra_articulos')"
+            style="background-color: #8ee076; padding: 5px 10px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer;">
+            Seguir comprando
+        </button>
     </div>
 
     <script>
@@ -175,9 +221,9 @@
             });
         }
     
-        function eliminarArticuloCarrito(idArticulo) {
+        function eliminarArticuloCarrito(id_articulo) {
             const cliente = new WSClient(URL);
-            cliente.postJson("eliminar_articulo_carrito", { idArticulo }, function (code, result) {
+            cliente.postJson("eliminar_articulo_carrito", { id_articulo }, function (code, result) {
                 if (code === 200) {
                     alert("Artículo eliminado del carrito");
                     mostrarCarrito();
